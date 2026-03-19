@@ -2,7 +2,7 @@
 
 ############################################################### Question 14.1
 
-data <- read.csv("breast-cancer-wisconsin.data", 
+data <- read.csv("breast-cancer-wisconsin.data.txt", 
                  header=FALSE, 
                  na.strings="?")
 
@@ -12,15 +12,16 @@ colnames(data) <- c("ID", "Clump_thickness", "Uniformity_size",
                     "Bland_chromatin", "Normal_nucleoli", 
                     "Mitoses", "Class")
 
-View(data)
-table(data$Class[is.na(data$Bare_nuclei)])
+#View(data)
+#table(data$Class[is.na(data$Bare_nuclei)])
+#table(data$Bare_nuclei)
 #sum(is.na(data$Bare_nuclei))
 
 hist(data$Bare_nuclei, 
      breaks=seq(0.5, 10.5, by=1),  
      main="Distribution of Bare Nuclei",
      xlab="Bare Nuclei", 
-     col="steelblue")
+     col="purple")
 
 bare_mean <- mean(data$Bare_nuclei, na.rm=TRUE)
 
@@ -49,8 +50,8 @@ predicted <- predict(model, newdata = missing)
 
 #View(predicted)
 
-predicted <- round(predicted)
-predicted <- pmin(pmax(predicted, 1), 10)
+predicted <-round(predicted)
+predicted <- as.integer(pmin(pmax(predicted, 1), 10))
 
 #View(predicted)
 
@@ -63,7 +64,7 @@ data_regression$Bare_nuclei[is.na(data_regression$Bare_nuclei)] <- predicted
 
 model_perturbation <- lm(Bare_nuclei ~ . - ID - Class, data = complete)
 predicted <- predict(model_perturbation, newdata = missing)
-sigma <- sigma(model)
+sigma <- sigma(model_perturbation)
 
 set.seed(42)  
 noise <- rnorm(nrow(missing), mean = 0, sd = sigma)
@@ -91,6 +92,10 @@ data_perturbation$Class <- factor(data_perturbation$Class, levels = c(2, 4), lab
 data_mode <- data_mode[, -1]
 data_regression <- data_regression[, -1]
 data_perturbation <- data_perturbation[, -1]
+
+#View(data_mode)
+#View(data_regression)
+#View(data_perturbation)
 
 ctrl <- trainControl(
   method = "cv", 
@@ -280,33 +285,22 @@ results <- data.frame(
 )
 
 print(results)
+print(results$Method)
 
-bp <- barplot(
-  matrix(results$Accuracy, nrow = 2),
-  beside = TRUE,
-  names.arg = c("Mode", "Regression", "Perturbation", "Deletion", "Binary"),
-  col = c("gray30", "gray70"),
-  density = c(-1, 20),
-  angle = c(0, 45),
-  ylim = c(0.9, 1.02),
-  main = "Classification Accuracy by Imputation Method",
-  ylab = "Accuracy",
-  las = 2
-)
+library(ggplot2)
 
-methods <- rep(c("Mode", "Regression", "Perturbation", "Deletion", "Binary"), each = 2)
-labels <- paste0(methods, "\n", round(results$Accuracy, 4))
-
-text(bp, results$Accuracy + 0.003, 
-     labels = labels, 
-     cex = 0.6)
-
-legend("topright", legend = c("SVM", "KNN"), 
-       fill = c("gray30", "gray70"),
-       density = c(-1, 20),
-       angle = c(0, 45))
-
-
+ggplot(results, aes(x = Method, y = Accuracy, fill = Classifier)) +
+  geom_bar(stat = "identity", position = "dodge", width = 0.7) +
+  geom_text(aes(label = round(Accuracy, 4)), 
+            position = position_dodge(width = 0.7), 
+            vjust = -0.5, size = 3) +
+  scale_fill_manual(values = c("SVM" = "purple1", "KNN" = "plum3")) +
+  scale_x_discrete(limits = c("Mode", "Regression", "Regression with Perturbation", "Deletion", "Binary Indicator")) +
+  coord_cartesian(ylim = c(0.95, 0.98)) +
+  theme_minimal() +
+  labs(title = "Classification Accuracy by Imputation Method",
+       x = NULL,
+       y = "Accuracy")
 
 
 
